@@ -1,4 +1,4 @@
-# Makefile для управления Nginx и PHP-FPM
+# Makefile for managing Nginx and PHP-FPM
 
 NGINX_CONF_PATH = /etc/nginx/nginx.conf
 PHP_FPM_SERVICE = php8.1-fpm
