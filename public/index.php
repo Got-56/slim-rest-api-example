@@ -1,9 +1,13 @@
 <?php declare(strict_types=1);
 
-use Psr\Http\Message\ServerRequestInterface as Request;
-use Psr\Http\Message\ResponseInterface as Response;
 use Slim\Factory\AppFactory;
 use DI\ContainerBuilder;
+use Slim\Handlers\Strategies\RequestResponseArgs;
+use App\Middleware\AddJsonResponseHeader;
+use App\Controllers\ProductIndex;
+use App\Controllers\Products;
+use App\Middleware\GetProduct;
+use Slim\Routing\RouteCollectorProxy;
 
 define('APP_ROOT', dirname(__DIR__));
 
@@ -22,18 +26,37 @@ AppFactory::setContainer($container);
 
 $app = AppFactory::create();
 
-$app->get('/api/products', function (Request $request, Response $response) {
+$collector = $app->getRouteCollector();
 
-    $repository = $this->get(App\Repositories\ProductRepository::class);
+$collector->setDefaultInvocationStrategy(new RequestResponseArgs);
 
-    $data = $repository->getAll();
+$app->addBodyParsingMiddleware();
 
-    $body = json_encode($data, JSON_PRETTY_PRINT);
+$error_middleware = $app->addErrorMiddleware(true, true, true);
 
-    $response->getBody()->write($body);
+$error_handler = $error_middleware->getDefaultErrorHandler();
 
-    return $response->withHeader('Content-Type', 'application/json');
+$error_handler->forceContentType('application/json');
+
+$app->add(new AddJsonResponseHeader);
+
+$app->group('/api', function (RouteCollectorProxy $group) {
+
+    $group->get('/products', ProductIndex::class);
+
+    $group->post('/products', [Products::class, 'create']);
+
+    $group->group('', function (RouteCollectorProxy $group) {
+
+        $group->get('/products/{id:[0-9]+}', Products::class . ':show');
+
+        $group->patch('/products/{id:[0-9]+}', Products::class . ':update');
+
+        $group->delete('/products/{id:[0-9]+}', Products::class . ':delete');
+
+    })->add(GetProduct::class);
 
 });
+
 
 $app->run();
